@@ -32,7 +32,7 @@ public:
      * @param running  Reference to the server's running flag.
      *                 Returns std::nullopt when running becomes false.
      */
-    std::optional<CompletedTrip> pop(const volatile bool &running)
+    std::optional<CompletedTrip> pop(bool running)
     {
         std::unique_lock<std::mutex> lock(mx_);
         cond_.wait(lock, [&]{ return !queue_.empty() || !running; });

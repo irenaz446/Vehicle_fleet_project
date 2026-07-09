@@ -14,6 +14,7 @@
 #include <vector>
 #include <mutex>
 #include <ctime>
+#include <cmath>
 #include "TelemetryParser.hpp"
 
 /** @brief Accumulates all data for one trip. */

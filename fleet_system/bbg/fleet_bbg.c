@@ -38,41 +38,13 @@
 
 #include "../common/common.h"
 #include "metrics.h"
+#include "fleet_bbg.h"    /* car_slot_t, ring_buffer_t, fleet_shared_t, car_thread_arg_t */
 
 /* ── Configuration ───────────────────────────────────────────────────── */
 #define I2C_DEV           "/dev/i2c-2"
 #define STM32_SLAVE_ADDR  0x08
 #define FRAME_SIZE        80
 #define RECONNECT_DELAY_S 3
-
-/* ── Per-car slot in shared memory ──────────────────────────────────── */
-typedef struct {
-    telemetry_frame_t  frame;      /* latest frame for this car          */
-    int                has_data;   /* 1 = new data ready to process      */
-    pthread_mutex_t    mutex;
-    pthread_cond_t     cond;
-} car_slot_t;
-
-/* ── History ring buffer ─────────────────────────────────────────────── */
-typedef struct {
-    telemetry_frame_t  frames[RING_SIZE];
-    int                head;       /* next write position                */
-    int                count;      /* total frames ever written          */
-    pthread_mutex_t    mutex;
-} ring_buffer_t;
-
-/* ── Complete shared structure — one global instance ─────────────────── */
-typedef struct {
-    car_slot_t    latest[MAX_CARS];
-    ring_buffer_t history;
-} fleet_shared_t;
-
-/* ── Arguments passed to each car thread ────────────────────────────── */
-typedef struct {
-    int         car_idx;           /* 0-99                               */
-    const char *server_ip;
-    int         server_port;
-} car_thread_arg_t;
 
 /* ── Globals ─────────────────────────────────────────────────────────── */
 static fleet_shared_t   g_fleet;
