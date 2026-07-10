@@ -43,7 +43,7 @@
 /* ── Configuration ───────────────────────────────────────────────────── */
 #define I2C_DEV           "/dev/i2c-2"
 #define STM32_SLAVE_ADDR  0x08
-#define FRAME_SIZE        80
+#define FRAME_SIZE        84
 #define RECONNECT_DELAY_S 3
 
 /* ── Globals ─────────────────────────────────────────────────────────── */
@@ -106,7 +106,19 @@ static int i2c_open(void)
         close(fd);
         return -1;
     }
-    printf("[I2C] Opened %s, slave=0x%02X\n", I2C_DEV, STM32_SLAVE_ADDR);
+    printf("[I2C] Opened %s, slave=0x%02X, frame=%d bytes\n",
+           I2C_DEV, STM32_SLAVE_ADDR, FRAME_SIZE);
+
+    /* Verify frame size matches the struct */
+    if ((int)sizeof(telemetry_frame_t) != FRAME_SIZE) {
+        printf("[ERR] sizeof(telemetry_frame_t)=%zu but FRAME_SIZE=%d — mismatch!\n",
+               sizeof(telemetry_frame_t), FRAME_SIZE);
+        close(fd);
+        return -1;
+    }
+    printf("[I2C] sizeof(telemetry_frame_t)=%zu OK\n",
+           sizeof(telemetry_frame_t));
+
     return fd;
 }
 
@@ -174,7 +186,11 @@ static void *i2c_reader_thread(void *arg)
         if (f->msg_type != MSG_TRIP_START &&
             f->msg_type != MSG_TRIP_DATA  &&
             f->msg_type != MSG_TRIP_END) {
-            printf("[WARN] Bad msg_type: 0x%02X\n", f->msg_type);
+            printf("[WARN] Bad msg_type: 0x%02X  raw bytes[0..7]: "
+                   "%02X %02X %02X %02X %02X %02X %02X %02X\n",
+                   (unsigned char)f->msg_type,
+                   buf[0], buf[1], buf[2], buf[3],
+                   buf[4], buf[5], buf[6], buf[7]);
             continue;
         }
 

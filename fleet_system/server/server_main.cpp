@@ -64,7 +64,8 @@ void db_thread_func(const std::string &db_path)
     }
 
     while (g_running || g_trip_queue.size() > 0) {
-        auto trip = g_trip_queue.pop(g_running.load());
+        bool running = g_running.load();
+        auto trip = g_trip_queue.pop(running);
         if (!trip.has_value()) break;
         db->insertTrip(*trip);
     }

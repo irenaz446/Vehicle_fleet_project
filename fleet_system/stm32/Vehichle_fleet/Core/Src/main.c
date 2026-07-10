@@ -5,7 +5,7 @@
   * @brief          : Vehicle Fleet Management System — STM32 Sensor Simulator
   *
   * This firmware simulates 100 virtual vehicles (CAR-001 to CAR-100).
-  * It cycles through all 100 cars every second, sending one 80-byte
+  * It cycles through all 100 cars every second, sending one 84-byte
   * telemetry_frame_t per car to the BBG over I2C (slave mode).
   *
   * Simulation (fleet_data.c):
@@ -19,7 +19,7 @@
   *   100 cars × ~10ms per I2C transaction ≈ 1 second per full sweep
   *
   * Peripherals:
-  *   I2C2   slave address 0x08, 80-byte frame per transaction
+  *   I2C2   slave address 0x08, 84-byte frame per transaction
   *   TIM2   1 Hz tick (Prescaler=15999, Period=999, HSI 16MHz)
   *   USART3 115200 baud debug output
   *
@@ -44,7 +44,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define STM32_SLAVE_ADDR    0x08     /* our own slave address */
-#define I2C_FRAME_BYTES     80     /* sizeof(telemetry_frame_t) */
+#define I2C_FRAME_BYTES     84     /* sizeof(telemetry_frame_t) */
 #define NUM_CARS            100
 /* USER CODE END PD */
 
@@ -213,6 +213,11 @@ int main(void)
   printf("Frame size  : %d bytes\r\n", I2C_FRAME_BYTES);
   printf("Slave addr  : 0x%02X\r\n", STM32_SLAVE_ADDR);
   printf("Sweep rate  : ~1 second per full cycle\r\n\n");
+  printf("sizeof(telemetry_frame_t) = %d\r\n", (int)sizeof(telemetry_frame_t));
+  printf("offset msg_type    = %d\r\n", (int)offsetof(telemetry_frame_t, msg_type));
+  printf("offset timestamp   = %d\r\n", (int)offsetof(telemetry_frame_t, timestamp_sec));
+  printf("sizeof frame       = %d\r\n", (int)sizeof(telemetry_frame_t));
+
   /* USER CODE END 2 */
 
   /* Infinite loop */

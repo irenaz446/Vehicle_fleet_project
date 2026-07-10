@@ -29,8 +29,7 @@ public:
 
     /**
      * @brief Pop next trip, blocking until one is available.
-     * @param running  Reference to the server's running flag.
-     *                 Returns std::nullopt when running becomes false.
+     * @param running  Server running flag — stops waiting when false.
      */
     std::optional<CompletedTrip> pop(bool running)
     {

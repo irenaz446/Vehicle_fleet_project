@@ -20,7 +20,7 @@
 
 /* Must match fleet server common.h */
 #define FLEET_MAX_CARS       100
-#define FRAME_SIZE_BYTES   80
+#define FRAME_SIZE_BYTES     84
 
 /* Message types */
 #define MSG_TRIP_START  'S'
@@ -70,10 +70,10 @@ typedef struct {
 } car_state_t;
 
 /**
- * @brief Telemetry frame — 80 bytes packed.
+ * @brief Telemetry frame — 84 bytes packed.
  *        Must be binary-identical to BBG side fleet_bbg.c telemetry_frame_t.
  */
-#pragma pack(push, 1)
+#pragma pack(push,1)
 typedef struct {
     char     car_id[8];
     char     driver_id[8];
