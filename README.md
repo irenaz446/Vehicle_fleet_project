@@ -17,7 +17,7 @@ STM32                    BBG (Linux)                PC / VirtualBox (Linux)
 ──────                   ───────────                ───────────────────────
 Simulates           I2C  I2C reader thread     TCP  Fleet server (C++)
 100 cars      ─────────► + 100 car threads  ───────► scores trips
-(sim_data.c)             (fleet_bbg.c)               stores to SQLite
+(fleet_data.c)             (fleet_bbg.c)               stores to SQLite
                          ↕ pthread shared             (server_main.cpp)
                            memory (in-process)        ↕ std::queue
                                                       DB thread
@@ -54,7 +54,7 @@ Grade:  90–100  Excellent
 ## Project File Structure
 
 ```
-fleet_final/
+fleet_system/
 ├── common/
 │   ├── common.h           Shared structs and constants (C and C++)
 │   │                      telemetry_frame_t = 84 bytes
@@ -73,8 +73,8 @@ fleet_final/
 │   └── metrics.c/.h       compute_metrics() from raw sensor data
 ├── stm32/
 │   ├── main.c             STM32 main loop — cycles 100 car IDs
-│   ├── sim_data.c         Sensor simulation engine for 100 cars
-│   └── sim_data.h         Simulation API header
+│   ├── fleet_data.c         Sensor simulation engine for 100 cars
+│   └── fleet_data.h         Simulation API header
 ├── config/
 │   └── fleet.cfg          Server configuration
 └── Makefile               Builds server, bbg (x86), bbg-arm (ARM)
@@ -200,7 +200,7 @@ sudo apt-get install gcc-arm-linux-gnueabihf
 ### Build all binaries
 
 ```bash
-cd fleet_final
+cd fleet_system
 make all
 ```
 
@@ -250,9 +250,9 @@ Timer gives exactly 1 Hz: 16 MHz HSI / 16000 / 1000 = 1 Hz
 
 ### Add fleet files to your CubeIDE project
 
-1. Copy `stm32/main.c`     → `Core/Src/main.c`     (replace existing)
-2. Copy `stm32/sim_data.c` → `Core/Src/sim_data.c`  (new file)
-3. Copy `stm32/sim_data.h` → `Core/Inc/sim_data.h`  (new file)
+1. Copy `stm32/main.c`      → `Core/Src/main.c`      (replace existing)
+2. Copy `stm32/fleet_data.c` → `Core/Src/fleet_data.c`  (new file)
+3. Copy `stm32/fleet_data.h` → `Core/Inc/fleet_data.h`  (new file)
 
 CubeIDE picks up new `.c` files in `Core/Src/` automatically.
 
@@ -267,7 +267,7 @@ terminal at 115200 baud and verify:
 ```
 
 If you see a different size, the struct layout in your `fleet_data.h`
-does not match `sim_data.h`. Make sure `trip_id` is declared as
+does not match the project. Make sure `trip_id` is declared as
 `char trip_id[20]` in both files.
 
 ### Build and flash
@@ -318,7 +318,7 @@ Start components in this exact order:
 ### Step 1 — PC: Start the fleet server
 
 ```bash
-cd fleet_final
+cd fleet_system
 ./bin/fleet_server config/fleet.cfg
 ```
 
