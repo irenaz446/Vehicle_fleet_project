@@ -40,7 +40,10 @@ extern "C" {
 #define HARSH_TURN_THRESHOLD    45.0f
 #define SPEED_LIMIT_KMH         60.0f
 
-/* ── Score penalty weights ───────────────────────────────────────────── */
+/* ── Sync marker ─────────────────────────────────────────────────────── */
+/** reserved[0] in every telemetry_frame_t is set to this value.
+ *  The BBG checks it to detect frame misalignment on the I2C bus. */
+#define FRAME_SYNC_BYTE   0xAB
 #define PENALTY_HARSH_BRAKE    5
 #define PENALTY_HARSH_ACCEL    3
 #define PENALTY_HARSH_TURN     4

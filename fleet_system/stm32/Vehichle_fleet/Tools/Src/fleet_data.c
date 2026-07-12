@@ -291,6 +291,9 @@ void fleet_get_frame(int idx, telemetry_frame_t *frame)
     frame->msg_type      = fleet_get_msg_type(idx);
     frame->gps_fix       = 1;
     frame->satellites    = 8;
+
+    /* sync byte — fixed magic value 0xAB */
+    frame->reserved[0] = 0xAB;   /* sync marker for BBG frame alignment */
 }
 
 char fleet_get_msg_type(int idx)

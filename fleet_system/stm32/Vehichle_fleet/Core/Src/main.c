@@ -64,7 +64,8 @@ UART_HandleTypeDef huart3;
 /* USER CODE BEGIN PV */
 /** @brief The frame buffer currently armed on the I2C slave. */
 static telemetry_frame_t g_frame;
-
+static telemetry_frame_t g_next_frame;   /* prepared next frame     */
+static volatile uint8_t  g_frame_ready = 0;
 /**
  * @brief Which car (0-99) is currently being served.
  *        Advanced in the main loop after each successful I2C TX.
@@ -107,24 +108,13 @@ static void MX_I2C2_Init(void);
 /* USER CODE BEGIN 0 */
 
 /**
- * @brief Arm the I2C slave for one transmit transaction.
- *        Called from main (never from IRQ).
- */
-static void i2c_arm(void)
-{
-    HAL_I2C_Slave_Transmit_IT(&hi2c2,
-                               (uint8_t *)&g_frame,
-							   I2C_FRAME_BYTES);
-}
-
-/**
  * @brief Prepare g_frame for the given car and arm the I2C slave.
  * @param car_idx  Car index 0-99.
  */
 static void send_car(int car_idx)
 {
-    fleet_get_frame(car_idx, &g_frame);
-    i2c_arm();
+    fleet_get_frame(car_idx, &g_next_frame);  /* prepare new frame first */
+    g_frame_ready = 1;
 }
 
 /**
@@ -136,6 +126,12 @@ void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
     if (hi2c->Instance != I2C2) return;
 
+    /* I2C just finished — g_frame is no longer being read.
+         * Safe to swap in the next prepared frame now. */
+	if (g_frame_ready) {
+		g_frame       = g_next_frame;  /* atomic struct copy */
+		g_frame_ready = 0;
+	}
     /* Re-arm immediately for the next read from BBG */
     g_tx_done = 1;              /* tell main loop a TX just completed */
     /* Re-arm with same frame — BBG might read again before main loop acts */
@@ -203,7 +199,9 @@ int main(void)
   fleet_data_init(base_ts);
 
   /* Prepare and arm the first car */
-  send_car(0);
+  /* Prepare first frame directly into g_frame for initial arm */
+   fleet_get_frame(0, &g_frame);
+   HAL_I2C_Slave_Transmit_IT(&hi2c2, (uint8_t *)&g_frame, I2C_FRAME_BYTES);
 
   /* Start 1-second timer */
   HAL_TIM_Base_Start_IT(&htim2);
@@ -234,14 +232,11 @@ int main(void)
           fleet_data_update();
           g_sweep_count = 0;   /* reset sweep counter for new second     */
 
-          /* Print statistics every 10 seconds */
-          static uint32_t stat_count = 0;
-          stat_count++;
-          if (stat_count % 10 == 0) {
-              printf("[STATS] Total frames sent: %lu | Cars simulated: %d\r\n",
-                     (unsigned long)g_total_frames, NUM_CARS);
-          }
       }
+
+      static uint32_t stat_count = 0;
+      if (++stat_count % 60 == 0)
+    	  printf("[STATS] frames=%lu\r\n", (unsigned long)g_total_frames);
 
       /* ── I2C TX complete: advance to next car ──────────────────────── */
       if (g_tx_done) {
@@ -259,6 +254,7 @@ int main(void)
           if (g_sweep_count < NUM_CARS) {
               /* Advance to next car */
               g_current_car = (g_current_car + 1) % NUM_CARS;
+              HAL_Delay(10);
               send_car(g_current_car);
           }
           /* else: sweep complete — main loop waits for g_tick */

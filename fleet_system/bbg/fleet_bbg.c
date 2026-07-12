@@ -164,14 +164,22 @@ static void *i2c_reader_thread(void *arg)
         memset(buf, 0, sizeof(buf));
 
         /* Blocking read — waits until STM32 sends next frame */
-        int n = read(fd, buf, FRAME_SIZE);
-        if (n < 0) {
-            printf("[ERR] I2C read: %s\n", strerror(errno));
-            sleep(1);
-            continue;
+        /* Read full frame — loop until all FRAME_SIZE bytes received */
+        int total = 0;
+        while (total < FRAME_SIZE) {
+            int n = read(fd, buf + total, FRAME_SIZE - total);
+            if (n < 0) {
+                printf("[ERR] I2C read: %s\n", strerror(errno));
+                total = -1;
+                break;
+            }
+            if (n == 0) break;
+            total += n;
         }
-        if (n < FRAME_SIZE) {
-            printf("[WARN] Short read: %d/%d bytes\n", n, FRAME_SIZE);
+
+        if (total < 0) { sleep(1); continue; }
+        if (total < FRAME_SIZE) {
+            printf("[WARN] Short read: %d/%d bytes\n", total, FRAME_SIZE);
             continue;
         }
 
@@ -181,6 +189,46 @@ static void *i2c_reader_thread(void *arg)
         f->car_id[7]     = '\0';
         f->driver_id[7]  = '\0';
         f->trip_id[15]   = '\0';
+
+        /* ── Validate sync marker in reserved[0] ───────────────────────
+         * The STM32 sets reserved[0] = 0xAB on every frame.
+         * If it is wrong the frame is misaligned — discard and resync. */
+        if (f->reserved[0] != 0xAB) {
+            printf("[WARN] Bad sync byte: 0x%02X — frame misaligned, discarding\n",
+                   f->reserved[0]);
+            /* Drain the I2C buffer by reading one byte at a time
+             * until we see 0xAB at position 0 of a new read        */
+            uint8_t drain;
+            int drained = 0;
+            while (drained < FRAME_SIZE * 2) {
+                if (read(fd, &drain, 1) == 1) {
+                    drained++;
+                    if (drain == 0xAB) {
+                        /* Found a sync — read the rest of the frame */
+                        buf[0] = 0xAB;
+                        int rest = 0;
+                        while (rest < FRAME_SIZE - 1) {
+                            int r = read(fd, buf + 1 + rest,
+                                         FRAME_SIZE - 1 - rest);
+                            if (r > 0) rest += r;
+                            else break;
+                        }
+                        if (rest == FRAME_SIZE - 1) {
+                            printf("[INFO] Resynced after %d bytes\n",
+                                   drained);
+                            /* Revalidate the recovered frame */
+                            f = (telemetry_frame_t *)buf;
+                            f->car_id[7]  = '\0';
+                            f->driver_id[7] = '\0';
+                            f->trip_id[15] = '\0';
+                            break;
+                        }
+                    }
+                } else break;
+            }
+            /* If still not synced, skip this frame */
+            if (f->reserved[0] != 0xAB) continue;
+        }
 
         /* Validate message type */
         if (f->msg_type != MSG_TRIP_START &&
